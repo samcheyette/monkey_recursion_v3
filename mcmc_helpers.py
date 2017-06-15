@@ -2,7 +2,7 @@
 import random
 import copy
 #from context import *
-from cleanStevesData_byParticipant2 import *
+from clean_steves_data import *
 import math
 from scipy.stats import beta
 
