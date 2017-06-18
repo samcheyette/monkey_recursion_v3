@@ -146,8 +146,7 @@ def remove_dups(out_hyps):
 
 
 def prob_d_given_h(hyp_gen, data, sm=1e-10):
-	n = sum([data[d] for d in data])
-
+	n = sum([data[d] for d in data])	
 	p_h = 0.0
 	hyp_gen_use = copy.deepcopy(hyp_gen)
 	sum_val = float(sum([data[k] for k in data]))
@@ -167,12 +166,13 @@ def prob_d_given_h(hyp_gen, data, sm=1e-10):
 
 	return p_h
 
-def normalize(lst, z=None):
+def normalise(lst, z=None):
 	z = sum(lst)
+	new_lst = []
 	assert(z > 0.0)
 	for l in lst:
 		new_lst.append(l/float(z))
-	return z
+	return new_lst
 
 def flatten_theta(theta, out_hyps, okeys):
 
@@ -188,8 +188,44 @@ def flatten_theta(theta, out_hyps, okeys):
 
 
 
+def add_noise_to_hyp(hyp_out, p):
+	#for now assumes deviation (dev) is 1
+	new_hyps = {}
+	for h in hyp_out:
+		lst=[]
+
+		old_hyp_out = hyp_out[h]
+		new_hyps[h] = (1.0 - p) * old_hyp_out
+		for i in xrange(len(h)):
+			for j in all_p:
+				if j != h[i]:
+					new_hyp = h[:i] + j + h[i+1:]
+					lst.append((new_hyp, old_hyp_out))
+
+		for lp in lst:
+			if lp[0] not in new_hyps:
+				new_hyps[lp[0]] = 0.0
+			new_hyps[lp[0]] += p * lp[1]/len(lst)
+
+
+	return new_hyps
+		
+
+def add_noise(out_hyps, p):
+	new_hyps={}
+
+	for h in out_hyps.keys():
+		#print h, out_hyps[h]
+		out_cop = copy.deepcopy(out_hyps[h])
+		new_hyps[h] = add_noise_to_hyp(out_cop, p)
+
+	return new_hyps
+
+
+
+
 def output_full_model(data, out_file, hyp_distr):
-	o = "who, which, P, alpha, CE, CR, TL, OT, corr\n"
+	o = "who, hyp_dist, HorM, which, P, alpha, CE, CR, TL, OT, corr\n"
 
 	ce = ["([])", "[()]"]
 	cr = ["([)]", "[(])"]
@@ -200,11 +236,10 @@ def output_full_model(data, out_file, hyp_distr):
 		alpha = d[1]
 		beta = d[2]
 		for b in beta:
-			o += "%s, %s, %f, %f, " % (who,
+			o += "%s, hyp, mod_trce, %s, %f, %f, " % (who,
 										 b, 
 										 beta[b], 
 										 alpha)
-
 
 			p_ce = 0.0
 			p_cr = 0.0
@@ -226,6 +261,31 @@ def output_full_model(data, out_file, hyp_distr):
 				corr=True
 
 			o += "%f, %f, %f, %f, %s\n" % (p_ce, p_cr, p_tr, p_ot, str(corr))
+		
+		hum = d[3]
+		mod = d[4]
+
+		all_keys = {}
+		for z in hum:
+			all_keys[z[0]] = [z[1]]
+
+		for z in all_keys.keys() + mod.keys():
+			if z not in all_keys:
+				all_keys[z] = [0.0]
+
+			if z not in mod:
+				all_keys[z].append(0.0)
+			else:
+				all_keys[z].append(mod[z])
+
+		for k in all_keys:
+			which = k
+			hum = all_keys[k][0]
+			mod = all_keys[k][1]
+			print k, hum, mod
+			o += "%s, dist, model, %s, %s\n" % (who, k, mod)
+			o += "%s, dist, human, %s, %s\n" % (who, k, hum)
+
 
 
 
